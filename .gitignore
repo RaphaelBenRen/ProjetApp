@@ -1,0 +1,3 @@
+server/pocketbase/*
+!server/pocketbase/pb_hooks/
+!server/pocketbase/pb_data/
