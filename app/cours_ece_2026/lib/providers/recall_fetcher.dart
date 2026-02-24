@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:formation_flutter/model/recall.dart';
+import 'package:formation_flutter/services/pocketbase_service.dart';
 
 class RecallFetcher extends ChangeNotifier {
-  final PocketBase pb;
+  final PocketBaseService _pbService;
   
 
-  RecallFetcher() : pb = PocketBase('http://127.0.0.1:8090'); 
+  RecallFetcher(this._pbService); 
 
   List<Recall> _recalls = [];
   bool _isLoading = false;
@@ -25,7 +26,7 @@ class RecallFetcher extends ChangeNotifier {
 
     try {
 
-      final resultList = await pb.collection('rappels').getList(
+      final resultList = await _pbService.pb.collection('rappels').getList(
         page: 1,
         perPage: 50,
         filter: 'identification_produits ~ "$gtin"',
