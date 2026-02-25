@@ -51,6 +51,8 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    final nutriments = json['nutriments'] as Map<String, dynamic>?;
+
     return Product(
       barcode: json['code'] ?? json['_id'] ?? '',
       name: json['product_name'],
@@ -61,6 +63,61 @@ class Product {
       nutriScore: _parseNutriScore(json['nutriscore_grade']),
       novaScore: _parseNovaScore(json['nova_group']),
       greenScore: _parseGreenScore(json['ecoscore_grade']),
+      ingredients: (json['ingredients'] as List?)
+          ?.map((e) => e['text'].toString())
+          .toList(),
+      ingredientsWithAllergens: json['ingredients_text_with_allergens_fr'] ?? json['ingredients_text_fr'],
+      allergens: json['allergens_from_ingredients']?.split(',').map((e) => e.trim()).toList().cast<String>(),
+      additives: _parseAdditives(json['additives_tags'], json['additives_fr_tags']),
+      nutrientLevels: _parseNutrientLevels(json['nutrient_levels']),
+      nutritionFacts: _parseNutritionFacts(nutriments, json['serving_size']),
+    );
+  }
+
+  static Map<String, String> _parseAdditives(List? tags, List? frTags) {
+    final Map<String, String> result = {};
+    if (tags == null) return result;
+    for (int i = 0; i < tags.length; i++) {
+      final key = tags[i].toString().replaceAll('en:', '');
+      final name = (frTags != null && i < frTags.length) 
+        ? frTags[i].toString().replaceAll('fr:', '') 
+        : key;
+      result[key] = name;
+    }
+    return result;
+  }
+
+  static NutrientLevels _parseNutrientLevels(Map<String, dynamic>? json) {
+    return NutrientLevels(
+      salt: json?['salt'],
+      saturatedFat: json?['saturated-fat'],
+      sugars: json?['sugars'],
+      fat: json?['fat'],
+    );
+  }
+
+  static NutritionFacts _parseNutritionFacts(Map<String, dynamic>? json, String? servingSize) {
+    Nutriment? parse(String key, String unit) {
+      if (json == null) return null;
+      return Nutriment(
+        unit: json['${key}_unit']?.toString() ?? unit,
+        perServing: json['${key}_serving'],
+        per100g: json['${key}_100g'],
+      );
+    }
+
+    return NutritionFacts(
+      servingSize: servingSize ?? '100g',
+      energy: parse('energy-kj', 'kJ'),
+      calories: parse('energy-kcal', 'kcal'),
+      fat: parse('fat', 'g'),
+      saturatedFat: parse('saturated-fat', 'g'),
+      carbohydrate: parse('carbohydrates', 'g'),
+      sugar: parse('sugars', 'g'),
+      fiber: parse('fiber', 'g'),
+      proteins: parse('proteins', 'g'),
+      salt: parse('salt', 'g'),
+      sodium: parse('sodium', 'mg'),
     );
   }
 

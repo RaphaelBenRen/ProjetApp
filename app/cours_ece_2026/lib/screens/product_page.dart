@@ -30,6 +30,7 @@ class _ProductPageState extends State<ProductPage> {
   late Product product;
   bool _isFavorite = false;
   bool _isLoading = true;
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -53,7 +54,6 @@ class _ProductPageState extends State<ProductPage> {
             _isLoading = false;
           });
         } else {
-          // Handle error
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Impossible de charger les données du produit")),
           );
@@ -125,7 +125,6 @@ class _ProductPageState extends State<ProductPage> {
                   top: Radius.circular(16.0),
                 ),
               ),
-
               padding: const EdgeInsetsDirectional.symmetric(
                 horizontal: 20.0,
                 vertical: 30.0,
@@ -153,10 +152,216 @@ class _ProductPageState extends State<ProductPage> {
                   ),
 
                   const SizedBox(height: 10),
-                  Scores(product: product),
+                  _buildTabContent(),
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedTab,
+        onTap: (index) => setState(() => _selectedTab = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Fiche'),
+          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Caractéristiques'),
+          BottomNavigationBarItem(icon: Icon(Icons.spa_outlined), label: 'Nutrition'),
+          BottomNavigationBarItem(icon: Icon(Icons.grid_on), label: 'Tableau'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabContent() {
+    switch (_selectedTab) {
+      case 0: return _buildFicheTab();
+      case 1: return _buildFeaturesTab();
+      case 2: return _buildNutritionTab();
+      case 3: return _buildTableTab();
+      default: return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildFicheTab() {
+    return Column(
+      children: [
+        Scores(product: product),
+        const SizedBox(height: 20),
+        _RowInfo(label: 'Quantité', value: product.quantity ?? 'Inconnue'),
+        _RowInfo(label: 'Vendu', value: 'France'),
+      ],
+    );
+  }
+
+  Widget _buildFeaturesTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Ingrédients'),
+        if (product.ingredients != null)
+           ...product.ingredients!.map((ing) => Padding(
+             padding: const EdgeInsets.symmetric(vertical: 4),
+             child: Text(ing),
+           )).toList()
+        else
+          const Text('Données non disponibles'),
+        
+        const SizedBox(height: 20),
+        _SectionHeader(title: 'Substances allergènes'),
+        Text(product.allergens?.join(', ') ?? 'Aucune'),
+
+        const SizedBox(height: 20),
+        _SectionHeader(title: 'Additifs'),
+        if (product.additives != null && product.additives!.isNotEmpty)
+          ...product.additives!.values.map((val) => Text(val)).toList()
+        else
+          const Text('Aucune'),
+      ],
+    );
+  }
+
+  Widget _buildNutritionTab() {
+    final levels = product.nutrientLevels;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Repères nutritionnels pour 100g', style: TextStyle(color: Colors.grey)),
+        const SizedBox(height: 20),
+        _NutritionLevelRow(
+          label: 'Matières grasses / lipides',
+          value: '${product.nutritionFacts?.fat?.per100g ?? 0}g',
+          level: levels?.fat,
+        ),
+        _NutritionLevelRow(
+          label: 'Acides gras saturés',
+          value: '${product.nutritionFacts?.saturatedFat?.per100g ?? 0}g',
+          level: levels?.saturatedFat,
+        ),
+        _NutritionLevelRow(
+          label: 'Sucres',
+          value: '${product.nutritionFacts?.sugar?.per100g ?? 0}g',
+          level: levels?.sugars,
+        ),
+        _NutritionLevelRow(
+          label: 'Sel',
+          value: '${product.nutritionFacts?.salt?.per100g ?? 0}g',
+          level: levels?.salt,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableTab() {
+    final facts = product.nutritionFacts;
+    return Table(
+      border: const TableBorder(horizontalInside: BorderSide(color: Colors.grey, width: 0.2)),
+      children: [
+        const TableRow(children: [
+          Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('')),
+          Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('Pour 100g', style: TextStyle(fontWeight: FontWeight.bold))),
+          Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('Par part', style: TextStyle(fontWeight: FontWeight.bold))),
+        ]),
+        _buildTableRow('Énergie', '${facts?.energy?.per100g ?? "?"} kj', '${facts?.energy?.perServing ?? "?"}'),
+        _buildTableRow('Matières grasses', '${facts?.fat?.per100g ?? "?"} g', '${facts?.fat?.perServing ?? "?"}'),
+        _buildTableRow('dont Acides gras saturés', '${facts?.saturatedFat?.per100g ?? "?"} g', '${facts?.saturatedFat?.perServing ?? "?"}'),
+        _buildTableRow('Glucides', '${facts?.carbohydrate?.per100g ?? "?"} g', '${facts?.carbohydrate?.perServing ?? "?"}'),
+        _buildTableRow('dont Sucres', '${facts?.sugar?.per100g ?? "?"} g', '${facts?.sugar?.perServing ?? "?"}'),
+        _buildTableRow('Fibres alimentaires', '${facts?.fiber?.per100g ?? "?"} g', '${facts?.fiber?.perServing ?? "?"}'),
+        _buildTableRow('Protéines', '${facts?.proteins?.per100g ?? "?"} g', '${facts?.proteins?.perServing ?? "?"}'),
+        _buildTableRow('Sel', '${facts?.salt?.per100g ?? "?"} g', '${facts?.salt?.perServing ?? "?"}'),
+        _buildTableRow('Sodium', '${facts?.sodium?.per100g ?? "?"} g', '${facts?.sodium?.perServing ?? "?"}'),
+      ],
+    );
+  }
+
+  TableRow _buildTableRow(String label, String per100, String perServing) {
+    return TableRow(children: [
+      Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(label)),
+      Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(per100)),
+      Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(perServing)),
+    ]);
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      color: Colors.grey.shade100,
+      child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E2652))),
+    );
+  }
+}
+
+class _RowInfo extends StatelessWidget {
+  final String label;
+  final String value;
+  const _RowInfo({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+}
+
+class _NutritionLevelRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? level;
+
+  const _NutritionLevelRow({required this.label, required this.value, this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    String text;
+    switch (level?.toLowerCase()) {
+      case 'low':
+        color = Colors.green;
+        text = 'Faible quantité';
+        break;
+      case 'moderate':
+        color = Colors.orange;
+        text = 'Quantité modérée';
+        break;
+      case 'high':
+        color = Colors.red;
+        text = 'Quantité élevée';
+        break;
+      default:
+        color = Colors.grey;
+        text = 'Inconnu';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(label)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(text, style: TextStyle(color: color, fontSize: 12)),
+            ],
           ),
         ],
       ),
