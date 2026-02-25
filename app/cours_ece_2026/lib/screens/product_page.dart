@@ -5,12 +5,21 @@ import 'package:formation_flutter/res/app_colors.dart';
 import 'package:formation_flutter/res/app_icons.dart';
 import 'package:formation_flutter/res/app_theme_extension.dart';
 
+import 'package:formation_flutter/services/pocketbase_service.dart';
+import 'package:formation_flutter/services/product_service.dart';
 import 'package:provider/provider.dart';
 import 'package:formation_flutter/providers/recall_fetcher.dart';
 import 'package:formation_flutter/widgets/product_recall_banner.dart';
 
 class ProductPage extends StatefulWidget {
-  const ProductPage({super.key});
+  final Map<String, dynamic>? productData;
+  final String barcode;
+
+  const ProductPage({
+    super.key,
+    this.productData,
+    required this.barcode,
+  });
 
   @override
   State<ProductPage> createState() => _ProductPageState();
@@ -18,35 +27,84 @@ class ProductPage extends StatefulWidget {
 
 class _ProductPageState extends State<ProductPage> {
   static const double IMAGE_HEIGHT = 300.0;
-  final Product product = Product(
-    barcode: '3383883752028',
-    name: 'Coulommiers au lait cru',
-    brands: ['Franprix', 'Société Fromagère de la Brie'],
-    picture:
-        'https://images.openfoodfacts.org/images/products/338/388/375/2028/front_fr.30.400.jpg',
-    nutriScore: ProductNutriScore.D,
-    novaScore: ProductNovaScore.group3,
-    greenScore: ProductGreenScore.C,
-  );
+  late Product product;
+  bool _isFavorite = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadProduct();
+  }
+
+  Future<void> _loadProduct() async {
+    if (widget.productData != null) {
+      product = Product.fromJson(widget.productData!);
+      setState(() {
+        _isLoading = false;
+      });
+    } else {
+      final productService = context.read<ProductService>();
+      final data = await productService.getProduct(widget.barcode);
+      if (mounted) {
+        if (data != null) {
+          setState(() {
+            product = Product.fromJson(data);
+            _isLoading = false;
+          });
+        } else {
+          // Handle error
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Impossible de charger les données du produit")),
+          );
+        }
+      }
+    }
+
+    _checkFavorite();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RecallFetcher>().checkProduct('3383883752028');
+      context.read<RecallFetcher>().checkProduct(widget.barcode);
     });
   }
 
-  @override
+  Future<void> _checkFavorite() async {
+    final isFav = await context.read<PocketBaseService>().isFavorite(widget.barcode);
+    if (mounted) {
+      setState(() {
+        _isFavorite = isFav;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    await context.read<PocketBaseService>().toggleFavorite(product);
+    _checkFavorite();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
             expandedHeight: IMAGE_HEIGHT,
+            actions: [
+              IconButton(
+                onPressed: _toggleFavorite,
+                icon: Icon(
+                  _isFavorite ? Icons.star : Icons.star_border,
+                  color: _isFavorite ? AppColors.yellow : Colors.white,
+                ),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
                 product.picture ??
@@ -95,7 +153,7 @@ class _ProductPageState extends State<ProductPage> {
                   ),
 
                   const SizedBox(height: 10),
-                  const Scores(),
+                  Scores(product: product),
                 ],
               ),
             ),
@@ -107,7 +165,8 @@ class _ProductPageState extends State<ProductPage> {
 }
 
 class Scores extends StatelessWidget {
-  const Scores({super.key});
+  final Product product;
+  const Scores({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -115,22 +174,22 @@ class Scores extends StatelessWidget {
       children: [
         IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: .start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 flex: 44,
-                child: _Nutriscore(nutriscore: ProductNutriScore.B),
+                child: _Nutriscore(nutriscore: product.nutriScore ?? ProductNutriScore.unknown),
               ),
-              VerticalDivider(),
+              const VerticalDivider(),
               Expanded(
                 flex: 56,
-                child: _NovaGroup(novaScore: ProductNovaScore.group4),
+                child: _NovaGroup(novaScore: product.novaScore ?? ProductNovaScore.unknown),
               ),
             ],
           ),
         ),
-        Divider(),
-        _GreenScore(greenScore: ProductGreenScore.A),
+        const Divider(),
+        _GreenScore(greenScore: product.greenScore ?? ProductGreenScore.unknown),
       ],
     );
   }
@@ -152,19 +211,20 @@ class _Nutriscore extends StatelessWidget {
           style: context.theme.title3,
         ),
         const SizedBox(height: 5.0),
-        Image.asset(_findAssetName(), height: 42.0),
+        if (_findAssetName() != null)
+          Image.asset(_findAssetName()!, height: 42.0),
       ],
     );
   }
 
-  String _findAssetName() {
+  String? _findAssetName() {
     return switch (nutriscore) {
       ProductNutriScore.A => 'res/drawables/nutriscore_a.png',
       ProductNutriScore.B => 'res/drawables/nutriscore_b.png',
       ProductNutriScore.C => 'res/drawables/nutriscore_c.png',
       ProductNutriScore.D => 'res/drawables/nutriscore_d.png',
       ProductNutriScore.E => 'res/drawables/nutriscore_e.png',
-      ProductNutriScore.unknown => 'TODO',
+      ProductNutriScore.unknown => null,
     };
   }
 }

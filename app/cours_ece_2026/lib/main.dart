@@ -4,17 +4,20 @@ import 'package:formation_flutter/res/app_colors.dart';
 import 'package:formation_flutter/res/app_theme_extension.dart';
 import 'package:formation_flutter/screens/product_page.dart';
 import 'package:formation_flutter/screens/login_screen.dart';
+import 'package:formation_flutter/screens/home_page.dart';
 
 import 'package:provider/provider.dart';
 import 'package:formation_flutter/providers/recall_fetcher.dart';
 import 'package:formation_flutter/providers/auth_provider.dart';
 import 'package:formation_flutter/services/pocketbase_service.dart';
+import 'package:formation_flutter/services/product_service.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
         Provider(create: (_) => PocketBaseService()),
+        Provider(create: (_) => ProductService()),
         ChangeNotifierProvider(
           create: (context) => AuthProvider(context.read<PocketBaseService>()),
         ),
@@ -58,7 +61,7 @@ class AuthWrapper extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     
     if (authProvider.isAuthenticated) {
-      return const ProductPage();
+      return const HomePage();
     } else {
       return const LoginScreen();
     }
