@@ -33,9 +33,9 @@ class RecallFetcher extends ChangeNotifier {
       );
 
       _recalls = resultList.items.map((item) {
-
           return Recall.fromJson(item.toJson());
       }).toList();
+      print('DEBUG: Parsed ${_recalls.length} recalls');
 
     } catch (e) {
       _error = e.toString();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:formation_flutter/model/recall.dart';
 import 'package:formation_flutter/res/app_colors.dart';
 import 'package:formation_flutter/res/app_theme_extension.dart';
+import 'package:formation_flutter/widgets/cors_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RecallPage extends StatelessWidget {
@@ -17,52 +18,76 @@ class RecallPage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
-            onPressed: recall.pdfUrl != null ? () => _launchUrl(recall.pdfUrl!) : null,
-            tooltip: recall.pdfUrl != null ? 'Ouvrir la fiche PDF' : 'Document non disponible',
+            onPressed: recall.pdfUrl != null && recall.pdfUrl!.isNotEmpty ? () => _launchUrl(recall.pdfUrl!) : null,
+            tooltip: recall.pdfUrl != null && recall.pdfUrl!.isNotEmpty ? 'Ouvrir la fiche PDF' : 'Document non disponible',
           ),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            if (recall.imageUrl != null)
-              Image.network(
-                recall.imageUrl!,
+            if (_isValid(recall.imageUrl)) ...[
+              CorsImage(
+                url: recall.imageUrl!,
                 height: 250,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (ctx, err, stack) => const SizedBox(
-                  height: 250,
-                  child: Center(child: Icon(Icons.broken_image, size: 50)),
-                ),
+                errorBuilder: (ctx, err, stack) {
+                  return SizedBox(
+                    height: 250,
+                    width: double.infinity,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text('Image non disponible',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey, fontSize: 10)
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
+            ],
             
-            _SectionHeader(title: 'Dates de commercialisation'),
-            _SectionContent(
-              content:
-                  'Du ${_formatDate(recall.dateDebutCommercialisation)} au ${_formatDate(recall.dateFinCommercialisation)}',
-            ),
+            if (_isValid(recall.dateDebutCommercialisation) || _isValid(recall.dateFinCommercialisation)) ...[
+              _SectionHeader(title: 'Dates de commercialisation'),
+              _SectionContent(
+                content:
+                    'Du ${_formatDate(recall.dateDebutCommercialisation)} au ${_formatDate(recall.dateFinCommercialisation)}',
+              ),
+            ],
 
-            _SectionHeader(title: 'Distributeurs'),
-            _SectionContent(content: recall.distributeurs ?? 'Non spécifié'),
+            if (_isValid(recall.distributeurs)) ...[
+              _SectionHeader(title: 'Distributeurs'),
+              _SectionContent(content: recall.distributeurs!),
+            ],
 
-            _SectionHeader(title: 'Zone géographique'),
-            _SectionContent(content: recall.zoneGeographique ?? 'Non spécifié'),
+            if (_isValid(recall.zoneGeographique)) ...[
+              _SectionHeader(title: 'Zone géographique'),
+              _SectionContent(content: recall.zoneGeographique!),
+            ],
 
-            _SectionHeader(title: 'Motif du rappel'),
-            _SectionContent(content: recall.motifRappel ?? 'Non spécifié'),
+            if (_isValid(recall.motifRappel)) ...[
+              _SectionHeader(title: 'Motif du rappel'),
+              _SectionContent(content: recall.motifRappel!),
+            ],
 
-             if (recall.risquesEncourus != null) ...[
+             if (_isValid(recall.risquesEncourus)) ...[
               _SectionHeader(title: 'Risques encourus'),
               _SectionContent(content: recall.risquesEncourus!),
             ],
 
-            if (recall.conduitesATenir != null) ...[
+            if (_isValid(recall.conduitesATenir)) ...[
               _SectionHeader(title: 'Conduite à tenir'),
               _SectionContent(content: recall.conduitesATenir!),
             ],
 
-            if (recall.infosComplementaires != null) ...[
+            if (_isValid(recall.infosComplementaires)) ...[
               _SectionHeader(title: 'Informations complémentaires'),
               _SectionContent(content: recall.infosComplementaires!),
             ],
@@ -74,15 +99,27 @@ class RecallPage extends StatelessWidget {
     );
   }
 
-  String _formatDate(String? dateStr) {
+  bool _isValid(String? value) {
+    if (value == null) return false;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.toLowerCase() == 'null' || trimmed.toLowerCase() == 'non spécifié') return false;
+    
+    // Check for empty HTML tags if it's from the editor
+    final cleanTags = trimmed.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    if (cleanTags.isEmpty && trimmed.contains('<')) return false;
 
-    return dateStr ?? 'Inconnue';
+    return true;
+  }
+
+  String _formatDate(String? dateStr) {
+    if (!_isValid(dateStr)) return 'Inconnue';
+    return dateStr!;
   }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      // Handle error
       debugPrint('Could not launch $url');
     }
   }

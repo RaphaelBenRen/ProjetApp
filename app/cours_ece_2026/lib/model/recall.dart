@@ -30,21 +30,33 @@ class Recall {
   });
 
   factory Recall.fromJson(Map<String, dynamic> json) {
+    print('DEBUG: Recall JSON: $json');
+    String? rawImageUrl = json['liens_vers_les_images'] as String?;
+    print('DEBUG: rawImageUrl: $rawImageUrl');
+    String? firstImageUrl;
+    if (rawImageUrl != null && rawImageUrl.trim().isNotEmpty) {
+      // Split by space/newline in case there are multiple URLs
+      final urls = rawImageUrl.trim().split(RegExp(r'\s+'));
+      if (urls.isNotEmpty) {
+        firstImageUrl = urls.first;
+        print('DEBUG: firstImageUrl: $firstImageUrl');
+      }
+    }
+
     return Recall(
-      id: json['id'] as String,
-      identificationProduits: json['identification_produits'] as String,
-      libelle: json['libelle'] as String?,
-      motifRappel: json['motif_rappel'] as String?,
-      risquesEncourus: json['risques_encourus'] as String?,
-      conduitesATenir:
-          json['conduites_a_tenir_par_le_consommateur'] as String?,
-      imageUrl: json['liens_vers_les_images'] as String?,
-      pdfUrl: json['lien_vers_affichette_pdf'] as String?,
-      dateDebutCommercialisation: json['date_debut_commercialisation'] as String?,
-      dateFinCommercialisation: json['date_date_fin_commercialisation'] as String?,
-      distributeurs: json['distributeurs'] as String?,
-      zoneGeographique: json['zone_geographique_de_vente'] as String?,
-      infosComplementaires: json['informations_complementaires'] as String?,
+      id: json['id']?.toString() ?? '',
+      identificationProduits: json['identification_produits']?.toString() ?? '',
+      libelle: json['libelle']?.toString(),
+      motifRappel: json['motif_rappel']?.toString(),
+      risquesEncourus: json['risques_encourus']?.toString(),
+      conduitesATenir: json['conduites_a_tenir_par_le_consommateur']?.toString(),
+      imageUrl: firstImageUrl,
+      pdfUrl: json['lien_vers_affichette_pdf']?.toString(),
+      dateDebutCommercialisation: json['date_debut_commercialisation']?.toString(),
+      dateFinCommercialisation: json['date_date_fin_commercialisation']?.toString(),
+      distributeurs: json['distributeurs']?.toString(),
+      zoneGeographique: json['zone_geographique_de_vente']?.toString(),
+      infosComplementaires: json['informations_complementaires']?.toString(),
     );
   }
 }
